@@ -2,6 +2,8 @@
 # =============================================================================
 #  MCP server za pametni plastenik
 # 
+#  Bazirano na:
+#  primjer_mcp_server.py - Kostur MCP servera za vjezbu US 2026
 #  Red. prof. dr Samim Konjicija, Ugradbeni sistemi, 2026. godina.
 #
 #  Pokretanje (za testiranje, van Hermesa):
