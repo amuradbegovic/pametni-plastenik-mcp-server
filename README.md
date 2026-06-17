@@ -11,6 +11,8 @@
 
 ## Instalacija
 
+`pip install -r requirements.txt # nije potrebno u containeru u laboratoriji`
+
 `git clone https://github.com/amuradbegovic/pametni-plastenik-mcp-server`
 
-`hermes mcp add pametni-plastenik --command "python" --args "pametni-plastenik-mcp-server/main.py"`
+`hermes mcp add pametni-plastenik --command "python" --args "/put/do/pametni-plastenik-mcp-server/main.py"`
