@@ -1,4 +1,5 @@
 import os
+import sys
 import threading
 import time
 
@@ -23,12 +24,12 @@ brava = threading.Lock()
 
 def on_connect(client, userdata, flags, reason_code, properties):
     if reason_code == 0:
-        print(f"[MQTT] Povezan na {MQTT_HOST}:{MQTT_PORT}")
+        print(f"[MQTT] Povezan na {MQTT_HOST}:{MQTT_PORT}", file=sys.stderr)
         client.subscribe("tele/+/SENSOR")
         client.subscribe("stat/+/RESULT")
         client.subscribe(f"etf/us/2026/{TIM}/+/data")
     else:
-        print(f"[MQTT] Greska pri povezivanju, kod: {reason_code}")
+        print(f"[MQTT] Greska pri povezivanju, kod: {reason_code}", file=sys.stderr)
 
 
 def on_message(client, userdata, msg):
@@ -38,7 +39,7 @@ def on_message(client, userdata, msg):
             "payload": payload,
             "vrijeme": time.time(),
         }
-    print(f"[MQTT] {msg.topic} -> {payload}")
+    print(f"[MQTT] {msg.topic} -> {payload}", file=sys.stderr)
 
 
 mqtt_client.on_connect = on_connect

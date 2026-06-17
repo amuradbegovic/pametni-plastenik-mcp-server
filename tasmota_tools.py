@@ -2,25 +2,27 @@ from globals import mcp, mqtt_client, posljednje_poruke, brava
 
 
 @mcp.tool()
-def tasmota_upali(uredjaj: str) -> str:
-    """Upali Tasmota uredjaj (relej/svjetlo).
+def tasmota_upali_relej(uredjaj: str, relej: int) -> str:
+    """Upali relej na Tasmota uredjaju (relej/svjetlo).
 
     Args:
         uredjaj: Ime Tasmota uredjaja (npr. 'lampa1', 'ventilator').
+        relej: Redni broj releja povezanog na uredjaj (npr. 1, 2, 3).
     """
-    topic = f"cmnd/{uredjaj}/POWER"
+    topic = f"cmnd/{uredjaj}/POWER{relej}"
     mqtt_client.publish(topic, "ON")
     return f"Poslana komanda UPALI uredjaju '{uredjaj}' (topic: {topic})"
 
 
 @mcp.tool()
-def tasmota_ugasi(uredjaj: str) -> str:
-    """Ugasi Tasmota uredjaj (relej/svjetlo).
+def tasmota_ugasi_relej(uredjaj: str, relej: int) -> str:
+    """Ugasi relej na Tasmota uredjaju (relej/svjetlo).
 
     Args:
         uredjaj: Ime Tasmota uredjaja (npr. 'lampa1', 'ventilator').
+        relej: Redni broj releja povezanog na uredjaj (npr. 1, 2, 3).
     """
-    topic = f"cmnd/{uredjaj}/POWER"
+    topic = f"cmnd/{uredjaj}/POWER{relej}"
     mqtt_client.publish(topic, "OFF")
     return f"Poslana komanda UGASI uredjaju '{uredjaj}' (topic: {topic})"
 
