@@ -1,0 +1,1 @@
+# pametni-plastenik-mcp-server
