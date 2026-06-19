@@ -1,3 +1,4 @@
+import json
 import time
 
 from globals import mcp, mqtt_client, posljednje_poruke, brava
@@ -67,4 +68,20 @@ def tasmota_citaj_senzor(uredjaj: str) -> str:
         zapis = posljednje_poruke.get(topic)
     if zapis is None:
         return f"Nema podataka za '{uredjaj}'. Uredjaj jos nije objavio telemetriju."
-    return f"Posljednji podaci ({topic}): {zapis['payload']}"
+
+    payload = zapis["payload"]
+
+    # Pokusaj parsirati JSON i pretvoriti sirovu LDR vrijednost (ANALOG.A3)
+    # u osvjetljenje (lux) prije nego sto se podaci vrate agentu.
+    try:
+        podaci = json.loads(payload)
+        a3 = podaci.get("ANALOG", {}).get("A3")
+        if a3 is not None and a3 > 0:
+            lux = 1.25 * 1e7 * (a3 ** -1.4059)
+            podaci["ANALOG"]["A3"] = round(lux, 2)
+            payload = json.dumps(podaci)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        # Ako payload nije ocekivani JSON, vrati ga nepromijenjen.
+        pass
+
+    return f"Posljednji podaci ({topic}): {payload}"

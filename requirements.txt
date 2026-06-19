@@ -1,2 +1,4 @@
 paho-mqtt>=1.6.1
 mcp[cli]>=1.0.0
+numpy
+pandas

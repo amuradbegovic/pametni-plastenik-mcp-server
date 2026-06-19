@@ -22,8 +22,12 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import os
+import sys
 
-DB_PATH = "plastenik_dataset.db"
+from globals import mcp, mqtt_client, posljednje_poruke, brava
+
+DB_PATH = f"{os.path.dirname(os.path.abspath(sys.argv[0]))}/plastenik_dataset.db"
 TABLE_NAME = "readings"
 
 # ISPRAVITE PREMA SVOM EKSPERIMENTU:
@@ -50,7 +54,7 @@ def _load_long() -> pd.DataFrame:
 
     if not Path(DB_PATH).exists():
         raise FileNotFoundError(
-            f"Ne postoji {DB_PATH}. Pokrenite prepare_dataset.py nad sensor_data.xlsx."
+                f"Ne postoji {DB_PATH}, pwd javlja {os.path.dirname(os.path.abspath(sys.argv[0]))}. Pokrenite prepare_dataset.py nad sensor_data.xlsx."
         )
 
     conn = sqlite3.connect(DB_PATH)
@@ -75,6 +79,11 @@ def _filtered(plant_type: str | None) -> pd.DataFrame:
 # MCP FUNKCIJE
 # ---------------------------------------------------------------------------
 
+@mcp.tool()
+def get_current_working_directory() -> str:
+    return os.path.dirname(os.path.abspath(sys.argv[0]))
+
+@mcp.tool()
 def get_optimal_conditions(plant_type: str) -> dict:
     """Vraca optimalne (prosjecne) vrijednosti svih parametara za zadanu biljku iz dataseta."""
     df = _filtered(plant_type)
@@ -85,6 +94,7 @@ def get_optimal_conditions(plant_type: str) -> dict:
     return {**means.to_dict(), "broj_mjerenja": len(df)}
 
 
+@mcp.tool()
 def get_dataset_recommendation(
     plant_type: str,
     temperature: float,
@@ -130,6 +140,7 @@ def get_dataset_recommendation(
     }
 
 
+@mcp.tool()
 def compare_current_vs_optimal(
     plant_type: str,
     temperature: float,

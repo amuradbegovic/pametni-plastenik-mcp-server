@@ -14,6 +14,7 @@
 
 import tasmota_tools  # registruje @mcp.tool() dekoratore
 import pico_tools     # registruje @mcp.tool() dekoratore
+import mcp_dataset_functions # registruje @mcp.tool() dekoratore
 
 from globals import mcp, mqtt_client, MQTT_HOST, MQTT_PORT
 
