@@ -1,5 +1,30 @@
+import time
+
 from globals import mcp, mqtt_client, posljednje_poruke, brava
 
+
+@mcp.tool()
+def tasmota_status_releja(uredjaj: str, relej: int) -> str:
+    """Dobij status releja na Tasmota uredjaju
+
+    Args:
+        uredjaj: Ime Tasmota uredjaja (npr. 'lampa1', 'ventilator').
+        relej: Redni broj releja povezanog na uredjaj (npr. 1, 2, 3).
+    """
+    stat_topic = f"stat/{uredjaj}/RESULT"
+    with brava:
+        posljednje_poruke.pop(stat_topic, None)
+
+    mqtt_client.publish(f"cmnd/{uredjaj}/POWER{relej}", "")
+
+    for _ in range(30):
+        time.sleep(0.1)
+        with brava:
+            zapis = posljednje_poruke.get(stat_topic)
+        if zapis is not None:
+            return zapis["payload"]
+
+    return "Nije bilo moguce dobiti status releja (timeout)."
 
 @mcp.tool()
 def tasmota_upali_relej(uredjaj: str, relej: int) -> str:

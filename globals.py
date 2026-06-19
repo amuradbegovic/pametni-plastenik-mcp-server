@@ -27,6 +27,7 @@ def on_connect(client, userdata, flags, reason_code, properties):
         print(f"[MQTT] Povezan na {MQTT_HOST}:{MQTT_PORT}", file=sys.stderr)
         client.subscribe("tele/+/SENSOR")
         client.subscribe("stat/+/RESULT")
+        client.subscribe("stat/+/+")
         client.subscribe(f"etf/us/2026/{TIM}/+/data")
     else:
         print(f"[MQTT] Greska pri povezivanju, kod: {reason_code}", file=sys.stderr)
