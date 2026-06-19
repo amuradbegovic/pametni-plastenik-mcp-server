@@ -76,9 +76,12 @@ def tasmota_citaj_senzor(uredjaj: str) -> str:
     try:
         podaci = json.loads(payload)
         a3 = podaci.get("ANALOG", {}).get("A3")
-        if a3 is not None and a3 > 0:
+        a2 = podaci.get("ANALOG", {}).get("A2")
+        if a3 is not None and a3 > 0 and a2 is not None and a2 > 0:
             lux = 1.25 * 1e7 * (a3 ** -1.4059)
             podaci["ANALOG"]["A3"] = round(lux, 2)
+            zemljap = 100 * (3794 - a2) / 2074
+            podaci["ANALOG"]["A2"] = round(zemljap, 2)
             payload = json.dumps(podaci)
     except (json.JSONDecodeError, TypeError, ValueError):
         # Ako payload nije ocekivani JSON, vrati ga nepromijenjen.
