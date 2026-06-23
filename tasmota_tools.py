@@ -55,36 +55,49 @@ def tasmota_ugasi_relej(uredjaj: str, relej: int) -> str:
 
 @mcp.tool()
 def tasmota_citaj_senzor(uredjaj: str) -> str:
-    """Procitaj posljednju telemetriju (senzor) sa Tasmota uredjaja.
+    """Procitaj svjeze podatke (senzor) sa Tasmota uredjaja.
 
-    Vraca posljednju primljenu SENSOR poruku. Ako uredjaj jos nije
-    objavio podatke, vraca obavjestenje da podaci nisu dostupni.
+    Salje komandu 'Status 10' uredjaju i ceka odgovor sa svjezim
+    ocitanjima senzora. Ako uredjaj ne odgovori, vraca obavjestenje
+    da podaci nisu dostupni (timeout).
 
     Args:
         uredjaj: Ime Tasmota uredjaja (npr. 'senzor_dnevni_boravak').
     """
-    topic = f"tele/{uredjaj}/SENSOR"
+    stat_topic = f"stat/{uredjaj}/STATUS10"
     with brava:
-        zapis = posljednje_poruke.get(topic)
+        posljednje_poruke.pop(stat_topic, None)
+
+    mqtt_client.publish(f"cmnd/{uredjaj}/Status", "10")
+
+    zapis = None
+    for _ in range(30):
+        time.sleep(0.1)
+        with brava:
+            zapis = posljednje_poruke.get(stat_topic)
+        if zapis is not None:
+            break
+
     if zapis is None:
-        return f"Nema podataka za '{uredjaj}'. Uredjaj jos nije objavio telemetriju."
+        return f"Nije bilo moguce dobiti svjeze podatke za '{uredjaj}' (timeout)."
 
     payload = zapis["payload"]
 
-    # Pokusaj parsirati JSON i pretvoriti sirovu LDR vrijednost (ANALOG.A3)
-    # u osvjetljenje (lux) prije nego sto se podaci vrate agentu.
+    # Pokusaj parsirati JSON i pretvoriti sirovu vrijednost vlaznosti zemlje
+    # (ANALOG.A2) u procente prije nego sto se podaci vrate agentu.
+    # Odgovor na 'Status 10' sadrzi senzore unutar kljuca 'StatusSNS'.
     try:
         podaci = json.loads(payload)
-        a3 = podaci.get("ANALOG", {}).get("A3")
-        a2 = podaci.get("ANALOG", {}).get("A2")
-        if a3 is not None and a3 > 0 and a2 is not None and a2 > 0:
-            lux = 1.25 * 1e7 * (a3 ** -1.4059)
-            podaci["ANALOG"]["A3"] = round(lux, 2)
-            zemljap = 100 * (3794 - a2) / 2074
-            podaci["ANALOG"]["A2"] = round(zemljap, 2)
+        senzori = podaci.get("StatusSNS", podaci)
+        a2 = senzori.get("ANALOG", {}).get("A2")
+        # Uredjaj sada sam ocitava svjetlost (ANALOG.Illuminance1) kako treba,
+        # pa pretvaranje sirove LDR vrijednosti u lux vise nije potrebno.
+        if a2 is not None and a2 > 0:
+            zemljap = 100 * (4000 - a2) / 2600
+            senzori["ANALOG"]["A2"] = round(zemljap, 2)
             payload = json.dumps(podaci)
     except (json.JSONDecodeError, TypeError, ValueError):
         # Ako payload nije ocekivani JSON, vrati ga nepromijenjen.
         pass
 
-    return f"Posljednji podaci ({topic}): {payload}"
+    return f"Svjezi podaci ({stat_topic}): {payload}"

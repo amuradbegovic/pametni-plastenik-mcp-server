@@ -1,7 +1,9 @@
 import os
 import sys
+import json
 import threading
 import time
+import sqlite3
 
 import paho.mqtt.client as mqtt
 from mcp.server.fastmcp import FastMCP
@@ -33,6 +35,83 @@ def on_connect(client, userdata, flags, reason_code, properties):
         print(f"[MQTT] Greska pri povezivanju, kod: {reason_code}", file=sys.stderr)
 
 
+# Otvori bazu
+
+def init_db(path=None):
+    # Apsolutna putanja vezana za lokaciju modula, jer Hermes pokrece
+    # server iz drugog radnog direktorija (CWD != projektni direktorij),
+    # pa bi relativna putanja kreirala bazu na pogresnom mjestu.
+    if path is None:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "statistika.db")
+    # check_same_thread=False jer upis u bazu radi MQTT loop thread
+    # (on_message), a konekcija se kreira u glavnom threadu.
+    conn = sqlite3.connect(path, check_same_thread=False)
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS Mjerenja (
+            ID               INTEGER PRIMARY KEY AUTOINCREMENT,
+            Datum            TEXT NOT NULL,
+            Vrijeme          TEXT NOT NULL,
+            VlaznostZemlje   REAL NOT NULL DEFAULT 0,
+            CO2              REAL NOT NULL DEFAULT 0,
+            Svjetlost        REAL NOT NULL DEFAULT 0,
+            TemperaturaZraka REAL NOT NULL DEFAULT 0,
+            VlaznostZraka    REAL NOT NULL DEFAULT 0,
+            TackaRosista     REAL NOT NULL DEFAULT 0
+        )
+        """
+    )
+    conn.commit()
+    return conn
+
+statistika = init_db()
+db_brava = threading.Lock()
+
+
+# Dodaj mjerenje u bazu
+
+def insert_measurement(conn, message):
+    data = json.loads(message) if isinstance(message, str) else message
+
+    date_part, time_part = data["Time"].split("T")
+
+    analog = data.get("ANALOG", {})
+    dht = data.get("DHT11", {})
+
+    # Pretvori sirove ocitanja senzora isto kao u tasmota_tools.py:
+    #   A2 -> vlaznost zemlje (%), MQ2_1 -> CO2.
+    a2 = analog.get("A2", 0)
+
+    vlaznost_zemlje = round(100 * (4000 - a2) / 2600, 2) if a2 and a2 > 0 else 0
+    # Uredjaj sada sam ocitava svjetlost (ANALOG.Illuminance1) kako treba, pa se
+    # sirova LDR vrijednost vise ne pretvara u lux, nego se sprema onakva kakva je.
+    svjetlost = analog.get("Illuminance1", 0)
+
+    row = (
+        date_part,
+        time_part,
+        vlaznost_zemlje,
+        analog.get("MQ2_1", 0),
+        svjetlost,
+        dht.get("Temperature", 0),
+        dht.get("Humidity", 0),
+        dht.get("DewPoint", 0),
+    )
+
+    with db_brava:
+        conn.execute(
+            """
+            INSERT INTO Mjerenja
+                (Datum, Vrijeme, VlaznostZemlje, CO2, Svjetlost,
+                 TemperaturaZraka, VlaznostZraka, TackaRosista)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            row,
+        )
+        conn.commit()
+
+
+
 def on_message(client, userdata, msg):
     payload = msg.payload.decode("utf-8", errors="replace")
     with brava:
@@ -40,6 +119,13 @@ def on_message(client, userdata, msg):
             "payload": payload,
             "vrijeme": time.time(),
         }
+    # Telemetrija senzora (tele/<uredjaj>/SENSOR) -> upisi mjerenje u bazu.
+    if msg.topic.startswith("tele/") and msg.topic.endswith("/SENSOR"):
+        try:
+            insert_measurement(statistika, payload)
+        except (json.JSONDecodeError, KeyError, ValueError, sqlite3.Error) as e:
+            print(f"[DB] Greska pri upisu mjerenja: {e}", file=sys.stderr)
+
     print(f"[MQTT] {msg.topic} -> {payload}", file=sys.stderr)
 
 

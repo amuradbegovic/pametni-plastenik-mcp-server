@@ -15,8 +15,9 @@
 import tasmota_tools  # registruje @mcp.tool() dekoratore
 import pico_tools     # registruje @mcp.tool() dekoratore
 import mcp_dataset_functions # registruje @mcp.tool() dekoratore
+import statistika_tools # registruje @mcp.tool() dekoratore
 
-from globals import mcp, mqtt_client, MQTT_HOST, MQTT_PORT
+from globals import mcp, mqtt_client, MQTT_HOST, MQTT_PORT, statistika
 
 # Potrebno iz razloga što u suprotnom ne može pristupiti ostalim python modulima 
 # kada se pokreće preko Hermesa.
