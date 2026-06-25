@@ -193,9 +193,15 @@ def statistika_graf(mjerenje: str, pocetak: str, kraj: str) -> str:
 
 
 def statistika_unesi_rad_pumpe(vrijeme):
+    with open("DEBUG.txt", "a") as file:
+        file.write("statistika_unesi_rad_pumpe-statistika_tools.py-")
     date_part, time_part =datetime.now().strftime('%Y-%m-%d %H:%M:%S').split(' ')
     try:
+        with open("DEBUG.txt", "a") as file:
+            file.write("insert_pump_work-")
         insert_pump_work(statistika, date_part, time_part, vrijeme)
+        with open("DEBUG.txt", "a") as file:
+            file.write("OK?-")
     except sqlite3.Error as e:
         return json.dumps({"greska": f"Greska pri unosu u bazu: {e}"},
                           ensure_ascii=False)
