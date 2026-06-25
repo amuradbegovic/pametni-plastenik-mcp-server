@@ -12,6 +12,7 @@ def tasmota_status_releja(uredjaj: str, relej: int) -> str:
         uredjaj: Ime Tasmota uredjaja (npr. 'lampa1', 'ventilator').
         relej: Redni broj releja povezanog na uredjaj (npr. 1, 2, 3).
     """
+    print("TU SAM")
     stat_topic = f"stat/{uredjaj}/RESULT"
     with brava:
         posljednje_poruke.pop(stat_topic, None)
@@ -35,6 +36,7 @@ def tasmota_upali_relej(uredjaj: str, relej: int) -> str:
         uredjaj: Ime Tasmota uredjaja (npr. 'lampa1', 'ventilator').
         relej: Redni broj releja povezanog na uredjaj (npr. 1, 2, 3).
     """
+    print("RELAY NEK SE UPALI")
     topic = f"cmnd/{uredjaj}/POWER{relej}"
     mqtt_client.publish(topic, "ON")
     return f"Poslana komanda UPALI uredjaju '{uredjaj}' (topic: {topic})"
@@ -66,9 +68,9 @@ def tasmota_upali_pumpu_ograniceno(uredjaj: str, relej: int, vrijeme: int) -> st
         relej: Redni broj releja odgovornog za pumpu povezanog na uredjaj (npr. 1, 2, 3).
         vrijeme: Trajanje u sekundama koliko dugo će raditi pumpa.
     """
+    topic = f"cmnd/{uredjaj}/POWER{relej}"
     if vrijeme is None or vrijeme < 1 or vrijeme > 4:
         return f"Poslana komanda UGASI uredjaju '{uredjaj}' (topic: {topic}) se nije smjela izvršiti zbog ne adekvatnog vremena trajanja (vrijeme: {vrijeme})"
-    topic = f"cmnd/{uredjaj}/POWER{relej}"
     err=statistika_unesi_rad_pumpe(vrijeme)
     if(err!=""):
         return f'Nije se moglo u bazu pribilježiti ovaj rad pumpe pa se neće ni u paliti. ovo je primljena greška: {err}'
