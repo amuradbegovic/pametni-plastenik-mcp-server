@@ -73,9 +73,15 @@ def tasmota_upali_pumpu_ograniceno(uredjaj: str, relej: int, vrijeme: int) -> st
     topic = f"cmnd/{uredjaj}/POWER{relej}"
     if vrijeme is None or vrijeme < 1 or vrijeme > 4:
         return f"Poslana komanda UGASI uredjaju '{uredjaj}' (topic: {topic}) se nije smjela izvršiti zbog ne adekvatnog vremena trajanja (vrijeme: {vrijeme})"
+    with open("DEBUG.txt", "a") as file:
+        file.write("statistika_unesi_rad_pumpe-")
     err=statistika_unesi_rad_pumpe(vrijeme)
     if(err!=""):
+        with open("DEBUG.txt", "a") as file:
+            file.write("FAIL\n")
         return f'Nije se moglo u bazu pribilježiti ovaj rad pumpe pa se neće ni u paliti. ovo je primljena greška: {err}'
+    with open("DEBUG.txt", "a") as file:
+        file.write("OK\n")
     mqtt_client.publish(topic, "ON")
     time.sleep(vrijeme)
     mqtt_client.publish(topic, "OFF")
