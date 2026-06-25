@@ -219,3 +219,7 @@ __marimo__/
 
 # Generisani grafovi
 grafovi/
+
+# Baza
+statistika.db
+.DS_Store
