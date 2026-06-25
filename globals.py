@@ -122,12 +122,7 @@ def insert_measurement(conn, message):
         conn.commit()
 
 def insert_pump_work(conn, date_part, time_part, vrijeme):
-    with open("DEBUG.txt", "a") as file:
-        file.write("insert_pump_work_SQL-")
-        file.write(f'({date_part},{time_part},{vrijeme})-')
     with db_brava:
-        with open("DEBUG.txt", "a") as file:
-            file.write("SQL_setup-")
         conn.execute(
             """
             INSERT INTO "Rad_Pumpe" 
@@ -136,11 +131,7 @@ def insert_pump_work(conn, date_part, time_part, vrijeme):
             """,
             (date_part, time_part, vrijeme)
         )
-        with open("DEBUG.txt", "a") as file:
-            file.write("SQL_execute-")
         conn.commit()
-        with open("DEBUG.txt", "a") as file:
-            file.write("END")
     pass
 
 
