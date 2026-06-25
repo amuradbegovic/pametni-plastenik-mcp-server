@@ -23,6 +23,17 @@ mqtt_client = mqtt.Client(
 posljednje_poruke = {}
 brava = threading.Lock()
 
+# --- Signalizacija pritiska tastera (hybrid trigger) -------------------------
+# Treci taster na picoETF objavljuje broj "3" na ovaj topic. MQTT loop thread
+# (on_message) na svaki takav pritisak povecava brojac i budi sve koji cekaju
+# preko taster_cond. Alat pico_cekaj_taster() radi dugo-poll na ovu Condition.
+# taster_brojac je lista (mutable holder) da bi 'from globals import' referenca
+# u pico_tools.py vidjela azuriranja (rebind cijelog broja se ne bi vidio).
+TASTER_TOPIC = "etf/us/2026/plastenik/picoetf/taster"
+TASTER_PAYLOAD = "3"
+taster_cond = threading.Condition()
+taster_brojac = [0]
+
 
 def on_connect(client, userdata, flags, reason_code, properties):
     if reason_code == 0:
@@ -31,6 +42,7 @@ def on_connect(client, userdata, flags, reason_code, properties):
         client.subscribe("stat/+/RESULT")
         client.subscribe("stat/+/+")
         client.subscribe(f"etf/us/2026/{TIM}/+/data")
+        client.subscribe(TASTER_TOPIC)
     else:
         print(f"[MQTT] Greska pri povezivanju, kod: {reason_code}", file=sys.stderr)
 
@@ -148,6 +160,12 @@ def on_message(client, userdata, msg):
             insert_measurement(statistika, payload)
         except (json.JSONDecodeError, KeyError, ValueError, sqlite3.Error) as e:
             print(f"[DB] Greska pri upisu mjerenja: {e}", file=sys.stderr)
+
+    # Treci taster (payload "3") -> signaliziraj sve koji cekaju pritisak.
+    if msg.topic == TASTER_TOPIC and payload.strip() == TASTER_PAYLOAD:
+        with taster_cond:
+            taster_brojac[0] += 1
+            taster_cond.notify_all()
 
     print(f"[MQTT] {msg.topic} -> {payload}", file=sys.stderr)
 
