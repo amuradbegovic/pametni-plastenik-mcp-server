@@ -31,10 +31,13 @@ def statistika_sql_upit(sql: str) -> str:
 
     Koristi ovaj alat za odgovaranje na pitanja o izmjerenim podacima,
     npr. prosjecna temperatura u nekom periodu, maksimalna vlaznost zraka,
-    broj mjerenja u danu i slicno. Sam sastavi odgovarajuci SELECT upit
-    na osnovu opisanih kolona, pa rezultat protumaci korisniku.
+    broj mjerenja u danu, koliko dugo je pumpa radila i slicno. Sam sastavi 
+    odgovarajuci SELECT upit na osnovu opisanih kolona, pa rezultat protumaci 
+    korisniku.
 
-    Baza ima jednu tabelu 'Mjerenja' sa kolonama:
+    Baza ima dvije tabele: 'Mjerenja' i 'Rad_Pumpe'
+    
+    'Mjerenja' ima kolone:
         ID               INTEGER  - redni broj zapisa
         Datum            TEXT     - datum mjerenja, format 'YYYY-MM-DD'
         Vrijeme          TEXT     - vrijeme mjerenja, format 'HH:MM:SS'
@@ -44,6 +47,12 @@ def statistika_sql_upit(sql: str) -> str:
         TemperaturaZraka REAL     - temperatura zraka (stepeni C)
         VlaznostZraka    REAL     - vlaznost zraka (%)
         TackaRosista     REAL     - tacka rosista (stepeni C)
+    
+    'Rad_Pumpe' ima kolone:
+        ID               INTEGER  - redni broj zapisa
+        Datum            TEXT     - datum mjerenja, format 'YYYY-MM-DD'
+        Vrijeme          TEXT     - vrijeme mjerenja, format 'HH:MM:SS'
+        Trajanje_rada    REAL     - trajanje rada pumpe u sekundama
 
     Dozvoljeni su samo SELECT (ili WITH) upiti; svaki drugi upit se odbija.
     Rezultat se vraca kao JSON sa kljucevima 'kolone' i 'redovi'.
@@ -53,6 +62,10 @@ def statistika_sql_upit(sql: str) -> str:
              "SELECT AVG(TemperaturaZraka) AS prosjek FROM Mjerenja
               WHERE Datum = '2026-06-23'
                 AND Vrijeme BETWEEN '17:00:00' AND '18:00:00'"
+             ili
+             "SELECT COUNT(Trajanje_rada) AS broj_pokretanja FROM Rad_Pumpe
+              WHERE Datum = '2026-06-24'
+                AND Vrijeme BETWEEN '06:00:00' AND '18:00:00'""
     """
     upit = sql.strip().rstrip(";").strip()
     prva_rijec = upit.lower()
@@ -178,60 +191,6 @@ def statistika_graf(mjerenje: str, pocetak: str, kraj: str) -> str:
         ensure_ascii=False,
     )
 
-@mcp.tool()
-def statistika_sql_upit_rada_pumpe(sql: str) -> str:
-    """Izvrsi SQL SELECT upit nad bazom mjerenja iz plastenika.
-
-    Koristi ovaj alat za odgovaranje na pitanja o radu pumpe,
-    npr. prosječan rad pumpe u nekom periodu, koliko se puta
-    upalila tjekom perioda i slično. Sam sastavi odgovarajuci SELECT upit
-    na osnovu opisanih kolona, pa rezultat protumaci korisniku.
-
-    Baza ima tabelu 'Rad_Pumpe' sa kolonama:
-        ID               INTEGER  - redni broj zapisa
-        Datum            TEXT     - datum mjerenja, format 'YYYY-MM-DD'
-        Vrijeme          TEXT     - vrijeme mjerenja, format 'HH:MM:SS'
-        Trajanje_rada    REAL     - trajanje rada pumpe u sekundama
-
-    Dozvoljeni su samo SELECT (ili WITH) upiti; svaki drugi upit se odbija.
-    Rezultat se vraca kao JSON sa kljucevima 'kolone' i 'redovi'.
-
-    Args:
-        sql: SQL SELECT naredba. Primjer za prosjecnu temperaturu u periodu:
-             "SELECT AVG(Trajanje_rada) AS prosjek_rada FROM Rad_Pumpe
-              WHERE Datum = '2026-06-24'
-                AND Vrijeme BETWEEN '06:00:00' AND '18:00:00'" ili
-             "SELECT count(Trajanje_rada) AS broj_pokretanja FROM Rad_Pumpe
-              WHERE Datum = '2026-06-24'
-                AND Vrijeme BETWEEN '06:00:00' AND '18:00:00'"
-    """
-    upit = sql.strip().rstrip(";").strip()
-    prva_rijec = upit.lower()
-    if not (prva_rijec.startswith("select") or prva_rijec.startswith("with")):
-        return "Dozvoljeni su samo SELECT upiti."
-
-    try:
-        with db_brava:
-            cur = statistika.execute(upit)
-            kolone = [opis[0] for opis in cur.description] if cur.description else []
-            redovi = cur.fetchall()
-    except sqlite3.Error as e:
-        return f"Greska pri izvrsavanju upita: {e}"
-
-    # Ogranici broj redova da ne preplavi odgovor (agregati su uvijek mali).
-    MAX_REDOVA = 500
-    odsjeceno = len(redovi) > MAX_REDOVA
-    redovi = redovi[:MAX_REDOVA]
-
-    rezultat = {
-        "kolone": kolone,
-        "redovi": [dict(zip(kolone, red)) for red in redovi],
-        "broj_redova": len(redovi),
-    }
-    if odsjeceno:
-        rezultat["napomena"] = f"Prikazano prvih {MAX_REDOVA} redova."
-
-    return json.dumps(rezultat, ensure_ascii=False)
 
 def statistika_unesi_rad_pumpe(vrijeme):
     date_part, time_part =datetime.now().strftime('%Y-%m-%d %H:%M:%S').split(' ')
