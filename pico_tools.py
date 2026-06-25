@@ -1,15 +1,46 @@
 import json
 import time
+import sqlite3
 
 from globals import (
     TIM, mcp, mqtt_client, posljednje_poruke, brava,
-    taster_cond, taster_brojac,
+    taster_cond, taster_brojac, statistika, db_brava,
 )
 
 # Kursor: koliko pritisaka tastera je agent vec "potrosio". None dok prvi poziv
 # ne postavi baznu vrijednost (da se ignorisu pritisci prije pocetka nadzora).
 # Lokalno stanje alata, cuvamo ga pod taster_cond bravom kao i taster_brojac.
 _taster_kursor = [None]
+
+
+def _zadnje_mjerenje_poruka() -> str:
+    """Procitaj posljednje mjerenje direktno iz baze i formatiraj poruku.
+
+    Radi se direktan SQL upit nad postojecom 'statistika' konekcijom (ista
+    infrastruktura kao statistika_sql_upit) da agent ne mora zvati zaseban
+    MCP alat - time se izbjegava dodatni LLM tool-call i ubrzava odgovor.
+    """
+    try:
+        with db_brava:
+            cur = statistika.execute(
+                "SELECT Datum, Vrijeme, VlaznostZemlje, CO2, Svjetlost, "
+                "TemperaturaZraka, VlaznostZraka, TackaRosista "
+                "FROM Mjerenja ORDER BY ID DESC LIMIT 1"
+            )
+            red = cur.fetchone()
+    except sqlite3.Error as e:
+        return f"Taster pritisnut, ali greska pri citanju mjerenja iz baze: {e}"
+
+    if red is None:
+        return "Taster pritisnut, ali u bazi jos nema nijednog mjerenja."
+
+    datum, vrijeme, vl_zemlje, co2, svjetlost, temp, vl_zraka, rosa = red
+    return (
+        f"Taster pritisnut. Posljednje mjerenje ({datum} {vrijeme}): "
+        f"vlaznost zemlje {vl_zemlje}%, CO2 {co2} ppm, svjetlost {svjetlost} lux, "
+        f"temperatura zraka {temp} C, vlaznost zraka {vl_zraka}%, "
+        f"tacka rosista {rosa} C."
+    )
 
 
 @mcp.tool()
@@ -51,8 +82,10 @@ def pico_cekaj_taster(timeout_s: int = 55) -> str:
 
     Blokira do timeout_s sekundi cekajuci da treci taster bude pritisnut
     (uredjaj objavi "3" na topic etf/us/2026/plastenik/picoetf/taster).
-    Cim pritisak stigne, odmah se vraca "PRITISNUT". Ako u zadatom periodu
-    nema pritiska, vraca "TIMEOUT" pa ga agent moze ponovo pozvati.
+    Cim pritisak stigne, alat sam procita posljednje mjerenje iz baze i vrati
+    gotovu poruku sa ocitanjima senzora (pocinje sa "Taster pritisnut."), pa
+    agent tu poruku samo proslijedi. Ako u zadatom periodu nema pritiska,
+    vraca "TIMEOUT" pa ga agent moze ponovo pozvati.
 
     Pritisci koji se dese dok agent obradjuje prethodni (izmedju dva poziva)
     se ne gube - sljedeci poziv se odmah vraca jer je brojac u medjuvremenu
@@ -75,9 +108,10 @@ def pico_cekaj_taster(timeout_s: int = 55) -> str:
                 return "TIMEOUT: treci taster nije pritisnut u zadatom periodu."
             taster_cond.wait(preostalo)
         # Potrosi sve pritiske do sada (vise pritisaka -> jedna obavijest).
-        novih = taster_brojac[0] - start
         _taster_kursor[0] = taster_brojac[0]
-    return f"PRITISNUT: treci taster (3) je pritisnut ({novih}x od zadnje provjere)."
+    # Pritisak detektovan -> odmah procitaj zadnje mjerenje iz baze i vrati
+    # gotovu poruku (bez dodatnog MCP tool-calla / LLM round-tripa).
+    return _zadnje_mjerenje_poruka()
 
 
 @mcp.tool()
