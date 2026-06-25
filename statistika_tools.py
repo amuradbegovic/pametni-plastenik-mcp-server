@@ -9,7 +9,7 @@ matplotlib.use("Agg")  # bez GUI-ja, jer server radi bez displeja
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 
-from globals import mcp, statistika, db_brava
+from globals import mcp, statistika, db_brava, insert_pump_work
 
 # Mapiranje naziva mjerenja na (kolona u bazi, citljiv naziv, jedinica).
 MJERENJA = {
@@ -177,3 +177,12 @@ def statistika_graf(mjerenje: str, pocetak: str, kraj: str) -> str:
         {"putanja": putanja, "broj_tacaka": len(vrijednosti)},
         ensure_ascii=False,
     )
+
+def statistika_unesi_rad_pumpe(vrijeme):
+    date_part, time_part =datetime.now().strftime('%Y-%m-%d %H:%M:%S').split(' ')
+    try:
+        insert_pump_work(statistika, date_part, time_part, vrijeme)
+    except sqlite3.Error as e:
+        return json.dumps({"greska": f"Greska pri unosu u bazu: {e}"},
+                          ensure_ascii=False)
+    return ""

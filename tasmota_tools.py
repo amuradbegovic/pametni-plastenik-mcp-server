@@ -2,7 +2,7 @@ import json
 import time
 
 from globals import mcp, mqtt_client, posljednje_poruke, brava
-
+from statistika_tools import statistika_unesi_rad_pumpe
 
 @mcp.tool()
 def tasmota_status_releja(uredjaj: str, relej: int) -> str:
@@ -52,6 +52,30 @@ def tasmota_ugasi_relej(uredjaj: str, relej: int) -> str:
     mqtt_client.publish(topic, "OFF")
     return f"Poslana komanda UGASI uredjaju '{uredjaj}' (topic: {topic})"
 
+@mcp.tool()
+def tasmota_upali_pumpu_ograniceno(uredjaj: str, relej: int, vrijeme: int) -> str:
+    """
+    Koristiti ovaj alat kada se pali i gasi pumpa.
+    Upali relej na Tasmota uredjaju koji je odgovoran za pumpu i 
+    unesi u bazu.
+    Vrijeme rada mora biti ograničeno u rasponu od 1 do 4 sekunde,
+    jer u suprotnom se ne smije pokrenuti.
+
+    Args:
+        uredjaj: Ime Tasmota uredjaja (npr. 'lampa1', 'ventilator').
+        relej: Redni broj releja odgovornog za pumpu povezanog na uredjaj (npr. 1, 2, 3).
+        vrijeme: Trajanje u sekundama koliko dugo će raditi pumpa.
+    """
+    if vrijeme is None or vrijeme < 1 or vrijeme > 4:
+        return f"Poslana komanda UGASI uredjaju '{uredjaj}' (topic: {topic}) se nije smjela izvršiti zbog ne adekvatnog vremena trajanja (vrijeme: {vrijeme})"
+    topic = f"cmnd/{uredjaj}/POWER{relej}"
+    err=statistika_unesi_rad_pumpe(vrijeme)
+    if(err!=""):
+        return f'Nije se moglo u bazu pribilježiti ovaj rad pumpe pa se neće ni u paliti. ovo je primljena greška: {err}'
+    mqtt_client.publish(topic, "ON")
+    time.sleep(vrijeme)
+    mqtt_client.publish(topic, "OFF")
+    return f'Pumpa je obavila svoj ciklus u {vrijeme} sekundi i uspješno je rad pribilježen u bazi'
 
 @mcp.tool()
 def tasmota_citaj_senzor(uredjaj: str) -> str:

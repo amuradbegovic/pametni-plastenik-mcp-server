@@ -61,6 +61,17 @@ def init_db(path=None):
         )
         """
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS "Rad_Pumpe" (
+            "ID"	INTEGER NOT NULL UNIQUE,
+            "Datum"	TEXT NOT NULL,
+            "Vrijeme"	TEXT NOT NULL,
+            "Trajanje_rada"	REAL NOT NULL,
+            PRIMARY KEY("ID" AUTOINCREMENT)
+        );
+        """
+    )
     conn.commit()
     return conn
 
@@ -110,6 +121,20 @@ def insert_measurement(conn, message):
         )
         conn.commit()
 
+def insert_pump_work(conn, date_part, time_part, vrijeme):
+    with db_brava:
+        conn.execute(
+            """
+            INSERT INTO "Rad_Pumpe" 
+                ("Datum", "Vrijeme", "Trajanje_rada") 
+            VALUES (?, ?, ?);
+            """,
+            date_part,
+            time_part,
+            vrijeme
+        )
+        conn.commit()
+    pass
 
 
 def on_message(client, userdata, msg):
