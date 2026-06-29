@@ -1,4 +1,4 @@
-from lib.MCPlocal import mcp_dataset_functions, pico_tools, statistika_tools, tasmota_tools
+from MCPlocal import mcp_dataset_functions, pico_tools, statistika_tools, tasmota_tools
 
 # mcp_dataset_functions
 def get_current_working_directory() -> str:
