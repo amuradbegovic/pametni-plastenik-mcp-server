@@ -3,3 +3,4 @@ mcp[cli]>=1.0.0
 numpy
 pandas
 matplotlib
+hermes-agent @ git+https://github.com/NousResearch/hermes-agent.git
